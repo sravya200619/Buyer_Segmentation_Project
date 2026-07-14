@@ -1,11 +1,9 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 
-# ===================================================
+# =====================================================
 # Page Configuration
-# ===================================================
+# =====================================================
 
 st.set_page_config(
     page_title="Segment Insights",
@@ -13,9 +11,9 @@ st.set_page_config(
     layout="wide"
 )
 
-# ===================================================
-# Load Data
-# ===================================================
+# =====================================================
+# Load Dataset
+# =====================================================
 
 @st.cache_data
 def load_data():
@@ -23,249 +21,110 @@ def load_data():
 
 df = load_data()
 
-# ===================================================
+# =====================================================
+# Standardize Column Names
+# =====================================================
+
+df.columns = (
+    df.columns
+      .str.strip()
+      .str.lower()
+      .str.replace(" ", "_")
+)
+
+# =====================================================
+# Required Columns
+# =====================================================
+
+required = [
+    "buyer_segment",
+    "age",
+    "satisfaction_score",
+    "loan_applied",
+    "client_type",
+    "country",
+    "region",
+    "acquisition_purpose"
+]
+
+missing = [col for col in required if col not in df.columns]
+
+if missing:
+    st.error(f"Missing Columns: {missing}")
+    st.write("Available Columns:")
+    st.write(df.columns.tolist())
+    st.stop()
+
+# =====================================================
 # Title
-# ===================================================
+# =====================================================
 
 st.title("💡 Buyer Segment Insights")
 
 st.markdown("""
-Explore detailed insights about each buyer segment including
-demographics, investment behaviour, financing patterns,
-customer satisfaction, and business recommendations.
+Explore detailed statistics and business insights for each buyer segment.
 """)
 
 st.markdown("---")
 
-# ===================================================
-# Sidebar Filters
-# ===================================================
-
-st.sidebar.header("🔍 Segment Filters")
+# =====================================================
+# Sidebar Filter
+# =====================================================
 
 segment = st.sidebar.selectbox(
-    "Buyer Segment",
-    sorted(df["Buyer_Segment"].unique())
+    "Select Buyer Segment",
+    sorted(df["buyer_segment"].unique())
 )
 
-filtered = df[df["Buyer_Segment"] == segment]
+filtered = df[df["buyer_segment"] == segment]
 
-# ===================================================
+# =====================================================
 # KPI Cards
-# ===================================================
+# =====================================================
 
 st.subheader("📊 Segment KPIs")
 
-c1,c2,c3,c4 = st.columns(4)
+col1, col2, col3, col4 = st.columns(4)
 
-with c1:
+with col1:
     st.metric(
         "Total Buyers",
         len(filtered)
     )
 
-with c2:
+with col2:
     st.metric(
         "Average Age",
-        round(filtered["Age"].mean(),1)
+        round(filtered["age"].mean(), 1)
     )
 
-with c3:
+with col3:
     st.metric(
-        "Average Satisfaction",
-        round(filtered["satisfaction_score"].mean(),2)
+        "Avg Satisfaction",
+        round(filtered["satisfaction_score"].mean(), 2)
     )
 
-with c4:
+with col4:
+    loan_rate = (
+        (filtered["loan_applied"] == "Yes").mean() * 100
+        if filtered["loan_applied"].dtype == object
+        else filtered["loan_applied"].mean() * 100
+    )
+
     st.metric(
-        "Countries",
-        filtered["country"].nunique()
+        "Loan Applicants",
+        f"{loan_rate:.1f}%"
     )
 
 st.markdown("---")
 
-# ===================================================
-# Buyer Profile
-# ===================================================
-
-col1,col2 = st.columns(2)
-
-with col1:
-
-    st.subheader("👥 Gender Distribution")
-
-    fig,ax = plt.subplots(figsize=(6,4))
-
-    sns.countplot(
-        data=filtered,
-        x="gender",
-        palette="Set2",
-        ax=ax
-    )
-
-    st.pyplot(fig)
-
-with col2:
-
-    st.subheader("🏢 Client Type")
-
-    fig,ax = plt.subplots(figsize=(6,4))
-
-    sns.countplot(
-        data=filtered,
-        x="client_type",
-        palette="Set3",
-        ax=ax
-    )
-
-    st.pyplot(fig)
-
-st.markdown("---")
-
-# ===================================================
-# Loan & Acquisition
-# ===================================================
-
-col1,col2 = st.columns(2)
-
-with col1:
-
-    st.subheader("🏦 Loan Behaviour")
-
-    fig,ax = plt.subplots(figsize=(6,4))
-
-    sns.countplot(
-        data=filtered,
-        x="loan_applied",
-        palette="Pastel1",
-        ax=ax
-    )
-
-    st.pyplot(fig)
-
-with col2:
-
-    st.subheader("🏠 Acquisition Purpose")
-
-    fig,ax = plt.subplots(figsize=(6,4))
-
-    sns.countplot(
-        data=filtered,
-        x="acquisition_purpose",
-        palette="Set1",
-        ax=ax
-    )
-
-    plt.xticks(rotation=15)
-
-    st.pyplot(fig)
-
-st.markdown("---")
-
-# ===================================================
-# Age & Satisfaction
-# ===================================================
-
-col1,col2 = st.columns(2)
-
-with col1:
-
-    st.subheader("📈 Age Distribution")
-
-    fig,ax = plt.subplots(figsize=(6,4))
-
-    sns.histplot(
-        filtered["Age"],
-        bins=20,
-        kde=True,
-        color="steelblue",
-        ax=ax
-    )
-
-    st.pyplot(fig)
-
-with col2:
-
-    st.subheader("😊 Satisfaction Score")
-
-    fig,ax = plt.subplots(figsize=(6,4))
-
-    sns.boxplot(
-        y=filtered["satisfaction_score"],
-        color="lightgreen",
-        ax=ax
-    )
-
-    st.pyplot(fig)
-
-st.markdown("---")
-
-# ===================================================
-# Country & Region
-# ===================================================
-
-col1,col2 = st.columns(2)
-
-with col1:
-
-    st.subheader("🌍 Top Countries")
-
-    st.dataframe(
-        filtered["country"]
-        .value_counts()
-        .reset_index()
-        .rename(columns={
-            "index":"Country",
-            "country":"Buyers"
-        }),
-        use_container_width=True
-    )
-
-with col2:
-
-    st.subheader("🌎 Top Regions")
-
-    st.dataframe(
-        filtered["region"]
-        .value_counts()
-        .reset_index()
-        .rename(columns={
-            "index":"Region",
-            "region":"Buyers"
-        }),
-        use_container_width=True
-    )
-
-st.markdown("---")
-
-# ===================================================
-# Referral Channel
-# ===================================================
-
-st.subheader("📢 Referral Channels")
-
-fig,ax = plt.subplots(figsize=(8,4))
-
-sns.countplot(
-    data=filtered,
-    x="referral_channel",
-    palette="tab20",
-    ax=ax
-)
-
-plt.xticks(rotation=30)
-
-st.pyplot(fig)
-
-st.markdown("---")
-
-# ===================================================
-# Statistical Summary
-# ===================================================
+# =====================================================
+# Segment Statistics
+# =====================================================
 
 st.subheader("📋 Statistical Summary")
 
-summary = filtered.describe(include="all")
+summary = filtered.describe(include="all").transpose()
 
 st.dataframe(
     summary,
@@ -274,68 +133,141 @@ st.dataframe(
 
 st.markdown("---")
 
-# ===================================================
-# Business Recommendations
-# ===================================================
+# =====================================================
+# Country Distribution
+# =====================================================
 
-st.subheader("💼 Business Recommendation")
+col1, col2 = st.columns(2)
 
-loan_mode = filtered["loan_applied"].mode()[0]
-purpose_mode = filtered["acquisition_purpose"].mode()[0]
-client_mode = filtered["client_type"].mode()[0]
+with col1:
 
-if loan_mode == "Yes":
-    recommendation = """
-### Recommended Strategy
+    st.subheader("🌍 Top Countries")
 
-- Promote flexible financing and EMI plans.
-- Partner with banks for attractive loan packages.
-- Target first-time buyers with affordable properties.
-- Highlight financing support in marketing campaigns.
-"""
+    country_df = (
+        filtered["country"]
+        .value_counts()
+        .reset_index()
+    )
+
+    country_df.columns = ["Country", "Buyers"]
+
+    st.dataframe(
+        country_df,
+        use_container_width=True
+    )
+
+with col2:
+
+    st.subheader("📍 Top Regions")
+
+    region_df = (
+        filtered["region"]
+        .value_counts()
+        .reset_index()
+    )
+
+    region_df.columns = ["Region", "Buyers"]
+
+    st.dataframe(
+        region_df,
+        use_container_width=True
+    )
+
+st.markdown("---")
+
+# =====================================================
+# Client Type
+# =====================================================
+
+col1, col2 = st.columns(2)
+
+with col1:
+
+    st.subheader("🏢 Client Types")
+
+    client_df = (
+        filtered["client_type"]
+        .value_counts()
+        .reset_index()
+    )
+
+    client_df.columns = ["Client Type", "Count"]
+
+    st.dataframe(
+        client_df,
+        use_container_width=True
+    )
+
+with col2:
+
+    st.subheader("🏠 Acquisition Purpose")
+
+    purpose_df = (
+        filtered["acquisition_purpose"]
+        .value_counts()
+        .reset_index()
+    )
+
+    purpose_df.columns = ["Purpose", "Count"]
+
+    st.dataframe(
+        purpose_df,
+        use_container_width=True
+    )
+
+st.markdown("---")
+
+# =====================================================
+# Business Insights
+# =====================================================
+
+st.subheader("💼 Business Insights")
+
+avg_age = filtered["age"].mean()
+avg_sat = filtered["satisfaction_score"].mean()
+
+if avg_age < 35:
+    age_text = "This segment mainly consists of younger buyers."
+elif avg_age < 50:
+    age_text = "This segment is dominated by middle-aged buyers."
 else:
-    recommendation = """
-### Recommended Strategy
+    age_text = "This segment mostly includes senior investors."
 
-- Focus on premium and luxury property listings.
-- Promote long-term investment opportunities.
-- Offer exclusive investment consultations.
-- Target high-net-worth and corporate buyers.
-"""
+if avg_sat >= 4:
+    sat_text = "Customer satisfaction is very high."
+elif avg_sat >= 3:
+    sat_text = "Customer satisfaction is moderate."
+else:
+    sat_text = "Customer satisfaction needs improvement."
 
-st.success(recommendation)
+st.success(f"""
+### Segment Analysis
 
-st.info(f"""
-**Most Common Client Type:** {client_mode}
+• {age_text}
 
-**Primary Acquisition Purpose:** {purpose_mode}
+• {sat_text}
 
-**Dominant Loan Preference:** {loan_mode}
+• Marketing campaigns can be personalized for this buyer segment.
+
+• Property recommendations should align with this group's investment goals.
+
+• Financing strategies can improve customer acquisition.
+
+• Geographic targeting can further increase conversion rates.
 """)
 
 st.markdown("---")
 
-# ===================================================
-# Raw Data
-# ===================================================
-
-with st.expander("📄 View Segment Data"):
-
-    st.dataframe(
-        filtered,
-        use_container_width=True
-    )
-
-# ===================================================
-# Download Button
-# ===================================================
+# =====================================================
+# Download Data
+# =====================================================
 
 csv = filtered.to_csv(index=False)
 
 st.download_button(
-    "📥 Download Segment Report",
-    csv,
-    file_name=f"{segment}_Segment_Report.csv",
+    label="📥 Download Segment Data",
+    data=csv,
+    file_name=f"{segment}_buyers.csv",
     mime="text/csv"
 )
 

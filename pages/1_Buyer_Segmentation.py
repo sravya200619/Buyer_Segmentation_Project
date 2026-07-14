@@ -3,9 +3,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# -------------------------------------------------------
-# Page Configuration
-# -------------------------------------------------------
+# ==========================================================
+# PAGE CONFIG
+# ==========================================================
 
 st.set_page_config(
     page_title="Buyer Segmentation",
@@ -13,9 +13,9 @@ st.set_page_config(
     layout="wide"
 )
 
-# -------------------------------------------------------
-# Load Data
-# -------------------------------------------------------
+# ==========================================================
+# LOAD DATA
+# ==========================================================
 
 @st.cache_data
 def load_data():
@@ -23,33 +23,60 @@ def load_data():
 
 df = load_data()
 
-# -------------------------------------------------------
-# Title
-# -------------------------------------------------------
+# ==========================================================
+# Recover Country & Region from One-Hot Encoding
+# ==========================================================
 
-st.title("📊 Buyer Segmentation Dashboard")
-st.markdown(
-    "Analyze customer groups identified using **K-Means Clustering** and explore buyer demographics."
-)
+country_cols = [c for c in df.columns if c.startswith("country_")]
+region_cols = [c for c in df.columns if c.startswith("region_")]
 
-st.markdown("---")
+if country_cols:
+    df["Country"] = (
+        df[country_cols]
+        .idxmax(axis=1)
+        .str.replace("country_", "", regex=False)
+    )
+else:
+    df["Country"] = "Unknown"
 
-# -------------------------------------------------------
-# Sidebar Filters
-# -------------------------------------------------------
+if region_cols:
+    df["Region"] = (
+        df[region_cols]
+        .idxmax(axis=1)
+        .str.replace("region_", "", regex=False)
+    )
+else:
+    df["Region"] = "Unknown"
 
-st.sidebar.header("🔍 Filters")
+# ==========================================================
+# TITLE
+# ==========================================================
+
+st.title("🏠 Buyer Segmentation Dashboard")
+
+st.markdown("""
+Analyze different buyer groups identified using **Machine Learning K-Means Clustering**.
+Use the filters on the left to explore buyer demographics.
+""")
+
+st.divider()
+
+# ==========================================================
+# SIDEBAR FILTERS
+# ==========================================================
+
+st.sidebar.header("Filters")
 
 country = st.sidebar.multiselect(
     "Country",
-    sorted(df["country"].unique()),
-    default=sorted(df["country"].unique())
+    sorted(df["Country"].unique()),
+    default=sorted(df["Country"].unique())
 )
 
 region = st.sidebar.multiselect(
     "Region",
-    sorted(df["region"].unique()),
-    default=sorted(df["region"].unique())
+    sorted(df["Region"].unique()),
+    default=sorted(df["Region"].unique())
 )
 
 client_type = st.sidebar.multiselect(
@@ -59,56 +86,49 @@ client_type = st.sidebar.multiselect(
 )
 
 filtered = df[
-    (df["country"].isin(country)) &
-    (df["region"].isin(region)) &
+    (df["Country"].isin(country)) &
+    (df["Region"].isin(region)) &
     (df["client_type"].isin(client_type))
 ]
 
-# -------------------------------------------------------
-# KPI Cards
-# -------------------------------------------------------
+# ==========================================================
+# KPI CARDS
+# ==========================================================
 
-st.subheader("📈 Key Performance Indicators")
+st.subheader("Key Performance Indicators")
 
-col1,col2,col3,col4 = st.columns(4)
+c1, c2, c3, c4 = st.columns(4)
 
-with col1:
-    st.metric(
-        "Total Buyers",
-        len(filtered)
-    )
+c1.metric("Total Buyers", len(filtered))
 
-with col2:
-    st.metric(
-        "Buyer Segments",
-        filtered["Buyer_Segment"].nunique()
-    )
+c2.metric(
+    "Buyer Segments",
+    filtered["Buyer_Segment"].nunique()
+)
 
-with col3:
-    st.metric(
-        "Average Age",
-        round(filtered["Age"].mean(),1)
-    )
+c3.metric(
+    "Average Age",
+    round(filtered["Age"].mean(), 1)
+)
 
-with col4:
-    st.metric(
-        "Average Satisfaction",
-        round(filtered["satisfaction_score"].mean(),2)
-    )
+c4.metric(
+    "Average Satisfaction",
+    round(filtered["satisfaction_score"].mean(), 2)
+)
 
-st.markdown("---")
+st.divider()
 
-# -------------------------------------------------------
-# Buyer Segment Charts
-# -------------------------------------------------------
+# ==========================================================
+# SEGMENT DISTRIBUTION
+# ==========================================================
 
-col1,col2 = st.columns(2)
+left, right = st.columns(2)
 
-with col1:
+with left:
 
     st.subheader("Buyer Segment Distribution")
 
-    fig,ax = plt.subplots(figsize=(7,5))
+    fig, ax = plt.subplots(figsize=(7,5))
 
     sns.countplot(
         data=filtered,
@@ -117,19 +137,20 @@ with col1:
         ax=ax
     )
 
-    plt.xticks(rotation=15)
+    plt.xticks(rotation=20)
 
     st.pyplot(fig)
 
-with col2:
+with right:
 
     st.subheader("Buyer Segment Share")
 
-    fig,ax = plt.subplots(figsize=(6,6))
+    fig, ax = plt.subplots(figsize=(6,6))
 
     filtered["Buyer_Segment"].value_counts().plot(
         kind="pie",
         autopct="%1.1f%%",
+        startangle=90,
         ax=ax
     )
 
@@ -137,34 +158,35 @@ with col2:
 
     st.pyplot(fig)
 
-st.markdown("---")
+st.divider()
 
-# -------------------------------------------------------
-# Age Distribution
-# -------------------------------------------------------
+# ==========================================================
+# AGE & SATISFACTION
+# ==========================================================
 
-col1,col2 = st.columns(2)
+left, right = st.columns(2)
 
-with col1:
+with left:
 
     st.subheader("Age Distribution")
 
-    fig,ax = plt.subplots(figsize=(7,5))
+    fig, ax = plt.subplots(figsize=(7,5))
 
     sns.histplot(
         filtered["Age"],
-        kde=True,
         bins=20,
+        kde=True,
+        color="skyblue",
         ax=ax
     )
 
     st.pyplot(fig)
 
-with col2:
+with right:
 
     st.subheader("Satisfaction Score")
 
-    fig,ax = plt.subplots(figsize=(7,5))
+    fig, ax = plt.subplots(figsize=(7,5))
 
     sns.boxplot(
         data=filtered,
@@ -174,23 +196,23 @@ with col2:
         ax=ax
     )
 
-    plt.xticks(rotation=15)
+    plt.xticks(rotation=20)
 
     st.pyplot(fig)
 
-st.markdown("---")
+st.divider()
 
-# -------------------------------------------------------
-# Client Type
-# -------------------------------------------------------
+# ==========================================================
+# CLIENT TYPE & LOAN
+# ==========================================================
 
-col1,col2 = st.columns(2)
+left, right = st.columns(2)
 
-with col1:
+with left:
 
     st.subheader("Client Type")
 
-    fig,ax = plt.subplots(figsize=(7,5))
+    fig, ax = plt.subplots(figsize=(7,5))
 
     sns.countplot(
         data=filtered,
@@ -199,13 +221,15 @@ with col1:
         ax=ax
     )
 
+    plt.xticks(rotation=20)
+
     st.pyplot(fig)
 
-with col2:
+with right:
 
-    st.subheader("Loan Behaviour")
+    st.subheader("Loan Applied")
 
-    fig,ax = plt.subplots(figsize=(7,5))
+    fig, ax = plt.subplots(figsize=(7,5))
 
     sns.countplot(
         data=filtered,
@@ -216,49 +240,41 @@ with col2:
 
     st.pyplot(fig)
 
-st.markdown("---")
+st.divider()
 
-# -------------------------------------------------------
-# Buyer Segment Summary
-# -------------------------------------------------------
+# ==========================================================
+# SUMMARY TABLE
+# ==========================================================
 
-st.subheader("📋 Buyer Segment Summary")
+st.subheader("Buyer Segment Summary")
 
 summary = filtered.groupby("Buyer_Segment").agg(
-    Total_Buyers=("client_id","count"),
+    Total_Buyers=("Buyer_Segment","count"),
     Average_Age=("Age","mean"),
     Average_Satisfaction=("satisfaction_score","mean")
 ).round(2)
 
-st.dataframe(
-    summary,
-    use_container_width=True
-)
+st.dataframe(summary, use_container_width=True)
 
-# -------------------------------------------------------
-# Raw Data
-# -------------------------------------------------------
+st.divider()
 
-with st.expander("📄 View Complete Dataset"):
+# ==========================================================
+# RAW DATA
+# ==========================================================
 
-    st.dataframe(
-        filtered,
-        use_container_width=True
-    )
+with st.expander("View Dataset"):
 
-# -------------------------------------------------------
-# Download Button
-# -------------------------------------------------------
+    st.dataframe(filtered, use_container_width=True)
 
-csv = filtered.to_csv(index=False)
+# ==========================================================
+# DOWNLOAD
+# ==========================================================
 
 st.download_button(
-    label="📥 Download Filtered Data",
-    data=csv,
-    file_name="Buyer_Segmentation.csv",
-    mime="text/csv"
+    "Download Filtered Dataset",
+    filtered.to_csv(index=False),
+    "Buyer_Segmentation.csv",
+    "text/csv"
 )
 
-st.markdown("---")
-
-st.success("Buyer Segmentation analysis completed successfully.")
+st.success("Buyer Segmentation Dashboard Loaded Successfully.")

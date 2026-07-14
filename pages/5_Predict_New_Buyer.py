@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+import os
 
 # ==========================================================
 # Page Configuration
@@ -14,33 +15,43 @@ st.set_page_config(
 )
 
 # ==========================================================
-# Load Models
-# ==========================================================
-
-kmeans = joblib.load("models/kmeans_model.pkl")
-scaler = joblib.load("models/scaler.pkl")
-
-# ==========================================================
 # Title
 # ==========================================================
 
 st.title("🔍 AI Buyer Segment Prediction")
 
 st.markdown("""
-Predict the most likely buyer segment using the trained Machine Learning model.
-
-Enter the buyer information below and click **Predict Buyer Segment**.
+Predict the buyer segment using the trained Machine Learning clustering model.
+Provide buyer information below and click **Predict Segment**.
 """)
 
 st.markdown("---")
 
 # ==========================================================
-# Buyer Information
+# Load Models
 # ==========================================================
 
-st.subheader("📝 Buyer Information")
+MODEL_PATH = "models/kmeans_model.pkl"
+SCALER_PATH = "models/scaler.pkl"
 
-col1,col2 = st.columns(2)
+if not os.path.exists(MODEL_PATH):
+    st.error("❌ kmeans_model.pkl not found inside models folder.")
+    st.stop()
+
+if not os.path.exists(SCALER_PATH):
+    st.error("❌ scaler.pkl not found inside models folder.")
+    st.stop()
+
+kmeans = joblib.load(MODEL_PATH)
+scaler = joblib.load(SCALER_PATH)
+
+# ==========================================================
+# User Inputs
+# ==========================================================
+
+st.subheader("Buyer Details")
+
+col1, col2 = st.columns(2)
 
 with col1:
 
@@ -51,228 +62,175 @@ with col1:
         30
     )
 
-    gender = st.selectbox(
-        "Gender",
-        ["Male","Female"]
-    )
-
-    client_type = st.selectbox(
-        "Client Type",
-        ["Individual","Corporate"]
-    )
-
-    loan = st.selectbox(
-        "Loan Applied",
-        ["Yes","No"]
-    )
-
-with col2:
-
     satisfaction = st.slider(
-        "Customer Satisfaction",
+        "Satisfaction Score",
         1.0,
         5.0,
         3.5
     )
 
-    acquisition = st.selectbox(
-        "Acquisition Purpose",
-        ["Investment","Personal Use"]
-    )
+with col2:
 
-    region = st.text_input(
-        "Region",
-        "North"
-    )
-
-    country = st.text_input(
-        "Country",
-        "India"
-    )
-
-st.markdown("---")
-
-# ==========================================================
-# Buyer Summary
-# ==========================================================
-
-st.subheader("📋 Buyer Profile")
-
-summary = pd.DataFrame({
-    "Feature":[
-        "Age",
-        "Gender",
-        "Client Type",
+    loan = st.selectbox(
         "Loan Applied",
-        "Acquisition Purpose",
-        "Region",
-        "Country",
-        "Satisfaction"
-    ],
-    "Value":[
+        ["Yes", "No"]
+    )
+
+    client_type = st.selectbox(
+        "Client Type",
+        ["Individual", "Corporate"]
+    )
+
+# ==========================================================
+# Encoding
+# ==========================================================
+
+loan = 1 if loan == "Yes" else 0
+
+client = 1 if client_type == "Corporate" else 0
+
+# ==========================================================
+# Feature Vector
+# ==========================================================
+
+features = np.array([
+    [
         age,
-        gender,
-        client_type,
+        satisfaction,
         loan,
-        acquisition,
-        region,
-        country,
-        satisfaction
+        client
     ]
-})
-
-st.dataframe(summary, use_container_width=True)
-
-st.markdown("---")
+])
 
 # ==========================================================
 # Prediction
 # ==========================================================
 
+st.markdown("---")
+
 if st.button("🚀 Predict Buyer Segment"):
 
     try:
 
-        # ------------------------------------------------------
-        # IMPORTANT
-        # Replace this feature vector with the EXACT
-        # encoded feature order used during model training.
-        # ------------------------------------------------------
-
-        feature_vector = np.array([
-            [
-                age,
-                satisfaction,
-                1 if loan=="Yes" else 0
-            ]
-        ])
-
-        scaled = scaler.transform(feature_vector)
+        scaled = scaler.transform(features)
 
         cluster = int(kmeans.predict(scaled)[0])
 
-        cluster_names = {
-            0: "🌍 Global Investors",
-            1: "🏠 First-Time Buyers",
+        segment_names = {
+            0: "🏡 First-Time Buyers",
+            1: "🌍 Global Investors",
             2: "🏢 Corporate Buyers",
             3: "💎 Luxury Investors"
         }
 
-        buyer_type = cluster_names.get(
-            cluster,
-            f"Cluster {cluster}"
-        )
+        segment = segment_names.get(cluster, f"Cluster {cluster}")
 
-        st.success(f"Predicted Segment: **{buyer_type}**")
+        st.success(f"Predicted Segment : **{segment}**")
 
         st.markdown("---")
 
-        st.subheader("📊 Business Recommendation")
+        st.subheader("📈 Recommended Business Strategy")
 
-        if buyer_type == "🌍 Global Investors":
-
-            st.success("""
-✅ Premium Investment Properties
-
-✅ International Projects
-
-✅ Luxury Apartments
-
-✅ Long-Term Investment Plans
-""")
-
-        elif buyer_type == "🏠 First-Time Buyers":
+        if cluster == 0:
 
             st.info("""
-✅ Affordable Housing
+### First-Time Buyers
 
-✅ Home Loan Offers
+✔ Affordable Apartments
 
-✅ EMI Assistance
+✔ Home Loan Assistance
 
-✅ Starter Homes
+✔ EMI Offers
+
+✔ First Buyer Discounts
+
+✔ Government Housing Schemes
 """)
 
-        elif buyer_type == "🏢 Corporate Buyers":
+        elif cluster == 1:
 
-            st.warning("""
-✅ Commercial Buildings
+            st.info("""
+### Global Investors
 
-✅ Office Spaces
+✔ Premium Villas
 
-✅ Bulk Purchase Offers
+✔ Rental Investments
 
-✅ Corporate Discounts
+✔ International Investment Support
+
+✔ Property Portfolio Management
 """)
 
-        elif buyer_type == "💎 Luxury Investors":
+        elif cluster == 2:
 
-            st.error("""
-✅ Luxury Villas
+            st.info("""
+### Corporate Buyers
 
-✅ Premium Apartments
+✔ Commercial Buildings
 
-✅ Exclusive Membership
+✔ Office Spaces
 
-✅ VIP Investment Services
+✔ Bulk Purchase Discounts
+
+✔ Enterprise Investment Plans
 """)
 
-        st.markdown("---")
+        elif cluster == 3:
 
-        st.subheader("📌 Suggested Marketing Strategy")
+            st.info("""
+### Luxury Investors
 
-        st.write("""
-- Personalized Email Campaign
-- Property Recommendation Engine
-- Dedicated Relationship Manager
-- Region-Based Property Promotions
-- AI-Powered Customer Engagement
+✔ Luxury Villas
+
+✔ Penthouses
+
+✔ Premium Concierge Services
+
+✔ Exclusive Investment Opportunities
 """)
 
-        # ==================================================
-        # Session History
-        # ==================================================
-
-        if "history" not in st.session_state:
-            st.session_state.history = []
-
-        st.session_state.history.append({
-            "Age": age,
-            "Client Type": client_type,
-            "Country": country,
-            "Prediction": buyer_type
-        })
+        st.balloons()
 
     except Exception as e:
 
-        st.error(f"Prediction failed: {e}")
+        st.error("Prediction Failed")
+
+        st.code(str(e))
+
+# ==========================================================
+# Model Information
+# ==========================================================
 
 st.markdown("---")
 
-# ==========================================================
-# Prediction History
-# ==========================================================
+st.subheader("🤖 Model Information")
 
-if "history" in st.session_state and st.session_state.history:
+st.write("Algorithm : **K-Means Clustering**")
 
-    st.subheader("📜 Prediction History")
+st.write("Scaling : **StandardScaler**")
 
-    history_df = pd.DataFrame(st.session_state.history)
-
-    st.dataframe(
-        history_df,
-        use_container_width=True
-    )
+st.write("Prediction Type : **Buyer Segmentation**")
 
 st.markdown("---")
 
-# ==========================================================
-# Information Box
-# ==========================================================
+st.warning("""
+**Important**
 
-st.info("""
-**Important:** This prediction page assumes the same preprocessing pipeline
-used during training. If your K-Means model was trained with one-hot encoded
-features, update the feature vector to include those encoded columns in the
-exact same order before calling `scaler.transform()` and `kmeans.predict()`.
+This page assumes the K-Means model was trained using **exactly these four features**:
+
+- Age
+- Satisfaction Score
+- Loan Applied
+- Client Type
+
+If your training notebook used One-Hot Encoding or additional features such as:
+
+- Country
+- Region
+- Acquisition Purpose
+- Referral Channel
+
+then the prediction feature vector must be modified to match the training data exactly.
 """)
+
+st.success("✅ Buyer Prediction Module Loaded Successfully.")

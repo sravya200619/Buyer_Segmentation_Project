@@ -3,9 +3,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# ===========================================================
+# =====================================================
 # Page Configuration
-# ===========================================================
+# =====================================================
 
 st.set_page_config(
     page_title="Geographic Buyer Analysis",
@@ -13,9 +13,9 @@ st.set_page_config(
     layout="wide"
 )
 
-# ===========================================================
+# =====================================================
 # Load Dataset
-# ===========================================================
+# =====================================================
 
 @st.cache_data
 def load_data():
@@ -23,294 +23,219 @@ def load_data():
 
 df = load_data()
 
-# ===========================================================
+# =====================================================
+# Recover Country and Region from One-Hot Encoding
+# =====================================================
+
+country_cols = [col for col in df.columns if col.startswith("country_")]
+region_cols = [col for col in df.columns if col.startswith("region_")]
+
+if country_cols:
+    df["Country"] = (
+        df[country_cols]
+        .idxmax(axis=1)
+        .str.replace("country_", "", regex=False)
+    )
+else:
+    df["Country"] = "Unknown"
+
+if region_cols:
+    df["Region"] = (
+        df[region_cols]
+        .idxmax(axis=1)
+        .str.replace("region_", "", regex=False)
+    )
+else:
+    df["Region"] = "Unknown"
+
+# =====================================================
 # Title
-# ===========================================================
+# =====================================================
 
 st.title("🌍 Geographic Buyer Analysis")
 
 st.markdown("""
-Analyze buyer distribution across different countries and regions,
-along with customer demographics, loan behaviour, and investment patterns.
+Analyze buyer distribution across different **countries and regions**.
+This dashboard helps identify regional investment opportunities and customer concentration.
 """)
 
 st.markdown("---")
 
-# ===========================================================
+# =====================================================
 # Sidebar Filters
-# ===========================================================
+# =====================================================
 
-st.sidebar.header("🌍 Geographic Filters")
+st.sidebar.header("🔍 Geographic Filters")
 
-region = st.sidebar.multiselect(
-    "Region",
-    sorted(df["region"].unique()),
-    default=sorted(df["region"].unique())
+selected_region = st.sidebar.multiselect(
+    "Select Region",
+    sorted(df["Region"].unique()),
+    default=sorted(df["Region"].unique())
 )
 
-country = st.sidebar.multiselect(
-    "Country",
-    sorted(df["country"].unique()),
-    default=sorted(df["country"].unique())
-)
-
-segment = st.sidebar.multiselect(
-    "Buyer Segment",
-    sorted(df["Buyer_Segment"].unique()),
-    default=sorted(df["Buyer_Segment"].unique())
+selected_country = st.sidebar.multiselect(
+    "Select Country",
+    sorted(df["Country"].unique()),
+    default=sorted(df["Country"].unique())
 )
 
 filtered = df[
-    (df["region"].isin(region)) &
-    (df["country"].isin(country)) &
-    (df["Buyer_Segment"].isin(segment))
+    (df["Region"].isin(selected_region)) &
+    (df["Country"].isin(selected_country))
 ]
 
-# ===========================================================
+# =====================================================
 # KPI Cards
-# ===========================================================
+# =====================================================
 
-st.subheader("📊 Geographic KPIs")
+st.subheader("📊 Geographic Overview")
 
-c1,c2,c3,c4 = st.columns(4)
+col1, col2, col3, col4 = st.columns(4)
 
-with c1:
-    st.metric(
-        "Total Buyers",
-        len(filtered)
-    )
+col1.metric(
+    "Total Buyers",
+    len(filtered)
+)
 
-with c2:
-    st.metric(
-        "Countries",
-        filtered["country"].nunique()
-    )
+col2.metric(
+    "Countries",
+    filtered["Country"].nunique()
+)
 
-with c3:
-    st.metric(
-        "Regions",
-        filtered["region"].nunique()
-    )
+col3.metric(
+    "Regions",
+    filtered["Region"].nunique()
+)
 
-with c4:
-    st.metric(
-        "Average Satisfaction",
-        round(filtered["satisfaction_score"].mean(),2)
-    )
+col4.metric(
+    "Avg Satisfaction",
+    round(filtered["satisfaction_score"].mean(), 2)
+)
 
 st.markdown("---")
 
-# ===========================================================
-# Region & Country Distribution
-# ===========================================================
+# =====================================================
+# Country Distribution
+# =====================================================
 
-col1,col2 = st.columns(2)
+left, right = st.columns(2)
 
-with col1:
-
-    st.subheader("🏙 Buyers by Region")
-
-    fig,ax = plt.subplots(figsize=(7,5))
-
-    sns.countplot(
-        data=filtered,
-        x="region",
-        palette="Set2",
-        ax=ax
-    )
-
-    plt.xticks(rotation=30)
-
-    st.pyplot(fig)
-
-with col2:
+with left:
 
     st.subheader("🌎 Buyers by Country")
 
-    fig,ax = plt.subplots(figsize=(8,5))
+    fig, ax = plt.subplots(figsize=(10,5))
 
     sns.countplot(
         data=filtered,
-        x="country",
-        palette="Set3",
-        ax=ax
-    )
-
-    plt.xticks(rotation=45)
-
-    st.pyplot(fig)
-
-st.markdown("---")
-
-# ===========================================================
-# Buyer Segment by Country
-# ===========================================================
-
-st.subheader("🏠 Buyer Segments by Country")
-
-fig,ax = plt.subplots(figsize=(12,5))
-
-sns.countplot(
-    data=filtered,
-    x="country",
-    hue="Buyer_Segment",
-    palette="tab10",
-    ax=ax
-)
-
-plt.xticks(rotation=45)
-
-st.pyplot(fig)
-
-st.markdown("---")
-
-# ===========================================================
-# Client Type & Loan Behaviour
-# ===========================================================
-
-col1,col2 = st.columns(2)
-
-with col1:
-
-    st.subheader("🏢 Client Type")
-
-    fig,ax = plt.subplots(figsize=(7,5))
-
-    sns.countplot(
-        data=filtered,
-        x="region",
-        hue="client_type",
-        ax=ax
-    )
-
-    plt.xticks(rotation=30)
-
-    st.pyplot(fig)
-
-with col2:
-
-    st.subheader("🏦 Loan Behaviour")
-
-    fig,ax = plt.subplots(figsize=(7,5))
-
-    sns.countplot(
-        data=filtered,
-        x="region",
-        hue="loan_applied",
-        ax=ax
-    )
-
-    plt.xticks(rotation=30)
-
-    st.pyplot(fig)
-
-st.markdown("---")
-
-# ===========================================================
-# Satisfaction & Age
-# ===========================================================
-
-col1,col2 = st.columns(2)
-
-with col1:
-
-    st.subheader("😊 Satisfaction by Region")
-
-    fig,ax = plt.subplots(figsize=(8,5))
-
-    sns.boxplot(
-        data=filtered,
-        x="region",
-        y="satisfaction_score",
+        y="Country",
+        order=filtered["Country"].value_counts().index,
         palette="viridis",
         ax=ax
     )
 
-    plt.xticks(rotation=30)
+    ax.set_xlabel("Number of Buyers")
 
     st.pyplot(fig)
 
-with col2:
+with right:
 
-    st.subheader("👥 Age Distribution")
+    st.subheader("🌍 Buyers by Region")
 
-    fig,ax = plt.subplots(figsize=(8,5))
+    fig, ax = plt.subplots(figsize=(7,5))
 
-    sns.boxplot(
+    sns.countplot(
         data=filtered,
-        x="region",
-        y="Age",
-        palette="coolwarm",
+        x="Region",
+        palette="Set2",
         ax=ax
     )
 
-    plt.xticks(rotation=30)
+    plt.xticks(rotation=20)
 
     st.pyplot(fig)
 
 st.markdown("---")
 
-# ===========================================================
-# Acquisition Purpose
-# ===========================================================
+# =====================================================
+# Buyer Segment by Region
+# =====================================================
 
-st.subheader("🏘 Acquisition Purpose by Region")
+st.subheader("🏠 Buyer Segments Across Regions")
 
-fig,ax = plt.subplots(figsize=(10,5))
+fig, ax = plt.subplots(figsize=(10,5))
 
 sns.countplot(
     data=filtered,
-    x="region",
-    hue="acquisition_purpose",
+    x="Region",
+    hue="Buyer_Segment",
     palette="Set1",
     ax=ax
 )
 
-plt.xticks(rotation=30)
+plt.xticks(rotation=20)
 
 st.pyplot(fig)
 
 st.markdown("---")
 
-# ===========================================================
-# Heatmap
-# ===========================================================
+# =====================================================
+# Satisfaction by Region
+# =====================================================
 
-st.subheader("🔥 Buyer Segment Heatmap")
+left, right = st.columns(2)
 
-heat = pd.crosstab(
-    filtered["region"],
-    filtered["Buyer_Segment"]
-)
+with left:
 
-fig,ax = plt.subplots(figsize=(8,5))
+    st.subheader("😊 Satisfaction by Region")
 
-sns.heatmap(
-    heat,
-    annot=True,
-    cmap="YlGnBu",
-    fmt="d",
-    ax=ax
-)
+    fig, ax = plt.subplots(figsize=(8,5))
 
-st.pyplot(fig)
+    sns.boxplot(
+        data=filtered,
+        x="Region",
+        y="satisfaction_score",
+        palette="coolwarm",
+        ax=ax
+    )
+
+    plt.xticks(rotation=20)
+
+    st.pyplot(fig)
+
+with right:
+
+    st.subheader("📈 Average Age by Region")
+
+    age_summary = (
+        filtered.groupby("Region")["Age"]
+        .mean()
+        .sort_values()
+    )
+
+    fig, ax = plt.subplots(figsize=(8,5))
+
+    age_summary.plot(
+        kind="bar",
+        ax=ax
+    )
+
+    ax.set_ylabel("Average Age")
+
+    st.pyplot(fig)
 
 st.markdown("---")
 
-# ===========================================================
+# =====================================================
 # Geographic Summary
-# ===========================================================
+# =====================================================
 
 st.subheader("📋 Geographic Summary")
 
-summary = filtered.groupby(["region"]).agg(
-
-    Buyers=("client_id","count"),
-
-    Avg_Age=("Age","mean"),
-
-    Avg_Satisfaction=("satisfaction_score","mean")
-
+summary = filtered.groupby(["Region", "Country"]).agg(
+    Buyers=("Buyer_Segment", "count"),
+    Avg_Age=("Age", "mean"),
+    Avg_Satisfaction=("satisfaction_score", "mean")
 ).round(2)
 
 st.dataframe(
@@ -320,9 +245,9 @@ st.dataframe(
 
 st.markdown("---")
 
-# ===========================================================
-# Raw Data
-# ===========================================================
+# =====================================================
+# Raw Dataset
+# =====================================================
 
 with st.expander("📄 View Geographic Dataset"):
 
@@ -331,14 +256,14 @@ with st.expander("📄 View Geographic Dataset"):
         use_container_width=True
     )
 
-# ===========================================================
-# Download Button
-# ===========================================================
+# =====================================================
+# Download
+# =====================================================
 
 csv = filtered.to_csv(index=False)
 
 st.download_button(
-    "📥 Download Geographic Data",
+    "📥 Download Geographic Report",
     csv,
     file_name="Geographic_Analysis.csv",
     mime="text/csv"
@@ -346,4 +271,4 @@ st.download_button(
 
 st.markdown("---")
 
-st.success("🌍 Geographic Buyer Analysis Completed Successfully.")
+st.success("✅ Geographic Buyer Analysis Completed Successfully.")
